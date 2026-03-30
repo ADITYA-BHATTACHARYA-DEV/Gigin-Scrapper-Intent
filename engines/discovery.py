@@ -116,7 +116,8 @@ async def find_platform_leads_from_search(platform: str, query: str) -> list:
     seen = {}
     for r in results:
         seen.setdefault(r["url"], r)
-    final = list(seen.values())
+        #This for the the number of results to be displayed and saved in the database
+    final = list(seen.values())[:10]
 
     print(f"[+] Returning {len(final)} leads for {platform}\n")
     return final

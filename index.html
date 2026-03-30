@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lat.ai | Recruitment AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto py-12 px-6">
+        <header class="mb-12">
+            <h1 class="text-4xl font-extrabold text-blue-500">Recruitment AI</h1>
+            <p class="text-gray-400 mt-2">Stealth search across global talent platforms.</p>
+        </header>
+
+        <section class="bg-gray-800 p-6 rounded-xl shadow-2xl">
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-2">Search Query</label>
+                <input id="query" type="text" placeholder="e.g. CUDA Engineer with Spack experience" 
+                       class="w-full p-3 rounded bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div class="mb-8">
+                <label class="block text-sm font-medium mb-3">Target Platforms</label>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center space-x-2"><input type="checkbox" value="linkedin" class="platform"> <span>LinkedIn</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" value="github" class="platform"> <span>GitHub</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" value="stackoverflow" class="platform"> <span>StackOverflow</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" value="reddit" class="platform"> <span>Reddit</span></label>
+                    <label class="flex items-center space-x-2"><input type="checkbox" value="x" class="platform"> <span>X</span></label>
+                </div>
+            </div>
+
+            <button onclick="startSearch()" id="searchBtn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">
+                Start Search
+            </button>
+        </section>
+
+        <div id="loading" class="hidden mt-8 text-center text-blue-400 animate-pulse">
+            Engines running... Bypassing anti-bot walls...
+        </div>
+
+        <div id="results" class="mt-12 space-y-6"></div>
+    </div>
+
+    <script>
+        async function startSearch() {
+            const query = document.getElementById('query').value;
+            const platforms = Array.from(document.querySelectorAll('.platform:checked')).map(cb => cb.value);
+            const btn = document.getElementById('searchBtn');
+            const resultsDiv = document.getElementById('results');
+            const loader = document.getElementById('loading');
+
+            if (!query || platforms.length === 0) return alert("Please enter a query and select platforms.");
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            resultsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch('http://localhost:8000/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, platforms })
+                });
+                
+                const data = await response.json();
+                
+                data.results.forEach(res => {
+                    const card = `
+                        <div class="bg-gray-800 p-6 rounded-lg border-l-4 border-blue-500">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-xs font-bold uppercase tracking-widest text-blue-400">${res.platform}</span>
+                                <a href="${res.url}" target="_blank" class="text-xs text-gray-500 hover:text-white">View Profile →</a>
+                            </div>
+                            <p class="text-gray-200 whitespace-pre-line">${res.analysis}</p>
+                        </div>`;
+                    resultsDiv.innerHTML += card;
+                });
+            } catch (err) {
+                resultsDiv.innerHTML = `<p class="text-red-400">Error connecting to backend. Ensure main.py is running.</p>`;
+            } finally {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

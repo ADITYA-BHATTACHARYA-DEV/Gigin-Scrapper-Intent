@@ -108,6 +108,7 @@ async def find_platform_leads_from_search(platform: str, query: str) -> list:
         "reddit":        _search_reddit,
         "github":        _search_github,
         "stackoverflow": _search_ddg,
+        "x":             _search_x,
     }
     handler = router.get(platform.lower(), _search_ddg)
     results = await handler(platform, clean_query, proxies)
@@ -360,6 +361,29 @@ async def _search_github(platform: str, query: str, proxies) -> list:
             print(f"    [!] GitHub {label} error: {e}")
     print(f"    [✓] GitHub: {len(results)} results")
     return results
+
+# ── X / Twitter ──────────────────────────────────────────────────────────────
+async def _search_x(platform: str, query: str, proxies) -> list:
+    # Normalize platform name
+    normalized_platform = "twitter"
+
+    print("    [→] Launching Playwright/Bing for X...")
+    bing_results = await _playwright_bing_search(
+        search_query=f"site:twitter.com {query}",
+        platform="x",
+        url_filter=lambda u: "twitter.com/" in u or "x.com/" in u,
+    )
+    if bing_results:
+        return bing_results
+
+    print("    [!] Bing empty — falling back to DuckDuckGo...")
+    ddg_results = await _search_ddg(normalized_platform, query, proxies)
+    if ddg_results:
+        return ddg_results
+
+    print("    [!] DuckDuckGo empty — trying Google CSE...")
+    return await _google_cse_search(normalized_platform, query, proxies)
+
 
 
 # ── DuckDuckGo HTML (StackOverflow fallback) ────────────────────────────────

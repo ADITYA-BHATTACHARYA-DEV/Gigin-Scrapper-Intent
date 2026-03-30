@@ -32,6 +32,7 @@ app.layout = dbc.Container([
                     {'label': 'Reddit', 'value': 'reddit'},
                     {'label': 'GitHub', 'value': 'github'},
                     {'label': 'StackOverflow', 'value': 'stackoverflow'},
+                    {'label': 'X', 'value': 'X'},
                 ],
                 value=['stackoverflow'],
                 inline=True,

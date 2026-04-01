@@ -5,8 +5,7 @@ from dash import Dash, html, dcc, Input, Output, State
 from dotenv import load_dotenv
 
 # Internal Engines
-# RECTIFIED: Importing the correct function name
-from engines.discovery import find_platform_leads_from_search 
+from engines.discovery import find_platform_leads_from_search, _playwright_stackoverflow
 from engines.extraction import ExtractionEngine
 from logic.analyzer import AnalysisEngine
 import storage
@@ -32,7 +31,7 @@ app.layout = dbc.Container([
                     {'label': 'Reddit', 'value': 'reddit'},
                     {'label': 'GitHub', 'value': 'github'},
                     {'label': 'StackOverflow', 'value': 'stackoverflow'},
-                    {'label': 'X', 'value': 'X'},
+                    {'label': 'X', 'value': 'x'},  # normalized lowercase
                 ],
                 value=['stackoverflow'],
                 inline=True,
@@ -70,27 +69,38 @@ def update_dashboard(n, keyword, platforms):
                 url = item['url']
                 
                 # 2. Hybrid Extraction Logic
-                if platform in ['linkedin', 'reddit']:
-                    # Use the Snippet text from Google results (Bypasses Login Walls)
+                if platform in ['linkedin', 'reddit', 'x', 'stackoverflow']:
                     print(f"   [📄] Using Snippet context for {platform}...")
                     context_text = f"Title: {item['title']}\nSnippet: {item['snippet']}"
                 else:
-                    # Use Crawl4AI for full technical content (StackOverflow/GitHub)
                     print(f"   [🕷️] Deep Crawling {platform}...")
-                    context_text = await extractor.to_markdown(url)
-                
-                if not context_text: continue
+                    try:
+                        context_text = await extractor.to_markdown(url)
+                    except Exception:
+                        if platform == 'stackoverflow':
+                            print(f"[!] Crawl4AI blocked, trying Playwright proxy for {url}")
+                            try:
+                                context_text = await _playwright_stackoverflow(url)
+                            except Exception:
+                                print(f"[!] Playwright also failed, falling back to snippet")
+                                context_text = f"Title: {item['title']}\nSnippet: {item['snippet']}"
+                        else:
+                            print(f"[!] Extraction failed for {url}, falling back to snippet")
+                            context_text = f"Title: {item['title']}\nSnippet: {item['snippet']}"
+
+                if not context_text:
+                    continue
 
                 # 3. AI Analysis Phase
                 analysis_text = await analyzer.get_intent_and_response(context_text)
-                
-                # 4. Storage & Results
+
+                # 4. Storage & Results (per lead)
                 result = {
                     'query': keyword, 
                     'platform': platform, 
                     'url': url,
-                    'intent': item.get('title', 'Technical Lead')[:60], # Clean snippet title
-                    'response': analysis_text
+                    'intent': item.get('title', 'Technical Lead')[:60],
+                    'response': analysis_text  # store analyzer output directly
                 }
                 
                 storage.save_to_all(result)
